@@ -73,9 +73,9 @@
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
           </BeforeMake>
           <AfterMake>
-            <RunUserProg1>0</RunUserProg1>
+            <RunUserProg1>1</RunUserProg1>
             <RunUserProg2>0</RunUserProg2>
-            <UserProg1Name></UserProg1Name>
+            <UserProg1Name>C:\Keil\ARM\ARMCC\bin\fromelf.exe  --bin -o   ..\OUTPUT\Obj\BootLoader.bin ..\OUTPUT\Obj\BootLoader.axf</UserProg1Name>
             <UserProg2Name></UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
@@ -335,7 +335,7 @@
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>1</Optim>
+            <Optim>3</Optim>
             <oTime>0</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>1</OneElfS>
@@ -351,7 +351,7 @@
               <MiscControls></MiscControls>
               <Define>STM32F10X_HD,USE_STDPERIPH_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>..\CORE;..\MALLOC;..\JSON;..\FWLIB\inc;..\SYSTEM\delay;..\SYSTEM\sys;..\USER;..\PERIPHERAL\iic1;..\DEVICEDRIVER\24cxx;..\DEVICEDRIVER\led;..\PERIPHERAL\usart;..\NET;..\DEVICEDRIVER\stmflash;..\PERIPHERAL\rtc;..\DEVICEDRIVER\bcxx</IncludePath>
+              <IncludePath>..\CORE;..\MALLOC;..\JSON;..\FWLIB\inc;..\SYSTEM\delay;..\SYSTEM\sys;..\USER;..\PERIPHERAL\iic1;..\DEVICEDRIVER\24cxx;..\DEVICEDRIVER\led;..\PERIPHERAL\usart;..\NET;..\DEVICEDRIVER\stmflash;..\PERIPHERAL\rtc;..\DEVICEDRIVER\bcxx;..\PLATFORMS;..\MEMORY</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -467,6 +467,11 @@
               <FileType>1</FileType>
               <FilePath>..\PERIPHERAL\rtc\rtc.c</FilePath>
             </File>
+            <File>
+              <FileName>usart2.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\PERIPHERAL\usart\usart2.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -491,6 +496,11 @@
               <FileName>bcxx.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\DEVICEDRIVER\bcxx\bcxx.c</FilePath>
+            </File>
+            <File>
+              <FileName>at_cmd.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\DEVICEDRIVER\bcxx\at_cmd.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -615,22 +625,47 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>MALLOC</GroupName>
+          <GroupName>MEMORY</GroupName>
           <Files>
+            <File>
+              <FileName>fifo.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MEMORY\fifo.c</FilePath>
+            </File>
             <File>
               <FileName>malloc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\MALLOC\malloc.c</FilePath>
+              <FilePath>..\MEMORY\malloc.c</FilePath>
+            </File>
+            <File>
+              <FileName>memb.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MEMORY\memb.c</FilePath>
+            </File>
+            <File>
+              <FileName>ringbuf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MEMORY\ringbuf.c</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
-          <GroupName>NET</GroupName>
+          <GroupName>PLATFORMS</GroupName>
           <Files>
             <File>
-              <FileName>ringbuf.c</FileName>
+              <FileName>memory.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\NET\ringbuf.c</FilePath>
+              <FilePath>..\PLATFORMS\memory.c</FilePath>
+            </File>
+            <File>
+              <FileName>socket.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\PLATFORMS\socket.c</FilePath>
+            </File>
+            <File>
+              <FileName>utils.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\PLATFORMS\utils.c</FilePath>
             </File>
           </Files>
         </Group>

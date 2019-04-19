@@ -6,6 +6,7 @@ u8 HoldReg[HOLD_REG_LEN];
 
 /***************************固件升级相关*****************************/
 u8 NeedUpDateFirmWare = 0;			//有新固件需要加载
+u8 NewFirmWareType = 'A';			//新固件类型
 u8 HaveNewFirmWare = 0;				//0xAA有新固件 others无新固件
 u8 NewFirmWareAdd = 0;				//0xAA新固件地址0x0800C000 0x55新固件地址0x08026000
 u16 NewFirmWareBagNum = 0;			//固件包的数量（一个固件包含多个小包）
@@ -23,6 +24,8 @@ time_t SysTick1s = 0;				//1s滴答时钟
 u8 *DeviceName = NULL;				//设备名称
 u8 *DeviceID = NULL;				//设备ID
 u8 *DeviceUUID = NULL;				//设备UUID
+u8 *DeviceICCID = NULL;				//ICCID
+u8 *DeviceIMSI = NULL;				//IMSI
 
 /***************************网络相关*********************************/
 u8 Operators = 0;					//运营商编号
@@ -30,6 +33,7 @@ u8 *APName = NULL;					//私有APN，不同客户APN不同
 u8 *ServerDomain = NULL;			//服务器域名
 u8 *ServerIP = NULL;				//服务器IP地址
 u8 *ServerPort = NULL;				//服务器端口号
+u8 *LocalIp = NULL;					//本地IP地址
 
 /***************************版本相关*********************************/
 u8 *BootLoaderVersion = NULL;		//BootLoader版本号
@@ -591,6 +595,26 @@ u8 GetDeviceUUID(void)
 	return ret;
 }
 
+//获取设备ICCID
+u8 GetDeviceICCID(void)
+{
+	u8 ret = 0;
+
+	ret = GetMemoryForString(&DeviceICCID, 2, 0, ICC_ID_ADD, ICC_ID_LEN - 2, HoldReg);
+
+	return ret;
+}
+
+//获取设备IMSI
+u8 GetDeviceIMSI(void)
+{
+	u8 ret = 0;
+
+	ret = GetMemoryForString(&DeviceIMSI, 2, 0, IMSI_ID_ADD, IMSI_ID_LEN - 2, HoldReg);
+
+	return ret;
+}
+
 //获取APN
 u8 GetAPN(void)
 {
@@ -742,17 +766,69 @@ u8 ReadDeviceUUID(void)
 	{
 		GetDeviceUUID();
 	}
-//	else
-//	{
-//		if(DeviceUUID == NULL)
-//		{
-//			DeviceUUID = (u8 *)mymalloc(sizeof(u8) * 65);
-//		}
+	else
+	{
+		if(DeviceUUID == NULL)
+		{
+			DeviceUUID = (u8 *)mymalloc(sizeof(u8) * UU_ID_LEN);
+		}
 
-//		memset(DeviceUUID,0,65);
+		memset(DeviceUUID,0,UU_ID_LEN);
 
-//		sprintf((char *)DeviceUUID, "000000000000000000000000000000000000");
-//	}
+		sprintf((char *)DeviceUUID, "00000000000000000");
+	}
+
+	return ret;
+}
+
+//读取设备ICCID
+u8 ReadDeviceICCID(void)
+{
+	u8 ret = 0;
+
+	ret = ReadDataFromEepromToHoldBuf(HoldReg,ICC_ID_ADD, ICC_ID_LEN);
+
+	if(ret)
+	{
+		GetDeviceICCID();
+	}
+	else
+	{
+		if(DeviceICCID == NULL)
+		{
+			DeviceICCID = (u8 *)mymalloc(sizeof(u8) * ICC_ID_LEN);
+		}
+
+		memset(DeviceICCID,0,ICC_ID_LEN);
+
+		sprintf((char *)DeviceICCID, "00000000000000000000");
+	}
+
+	return ret;
+}
+
+//读取设备IMSI
+u8 ReadDeviceIMSI(void)
+{
+	u8 ret = 0;
+
+	ret = ReadDataFromEepromToHoldBuf(HoldReg,IMSI_ID_ADD, IMSI_ID_LEN);
+
+	if(ret)
+	{
+		GetDeviceIMSI();
+	}
+	else
+	{
+		if(DeviceIMSI == NULL)
+		{
+			DeviceIMSI = (u8 *)mymalloc(sizeof(u8) * IMSI_ID_LEN);
+		}
+
+		memset(DeviceIMSI,0,IMSI_ID_LEN);
+
+		sprintf((char *)DeviceIMSI, "000000000000000");
+	}
 
 	return ret;
 }
@@ -892,6 +968,7 @@ u8 ReadOTAInfo(u8 *hold_reg)
 	if(ret == 1)
 	{
 		HaveNewFirmWare 	= *(hold_reg + FIRM_WARE_FLAG_S_ADD);
+		NewFirmWareType 	= *(hold_reg + FIRM_WARE_TYPE_S_ADD);
 		NewFirmWareAdd 		= *(hold_reg + FIRM_WARE_STORE_ADD_S_ADD);
 		NewFirmWareVer 		= (((u16)(*(hold_reg + FIRM_WARE_VER_S_ADD + 0))) << 8) + \
 								(u16)(*(hold_reg + FIRM_WARE_VER_S_ADD + 1));
@@ -908,17 +985,22 @@ void ResetOTAInfo(u8 *hold_reg)
 	u16 crc_code = 0;
 	u16 i = 0;
 	
-	HaveNewFirmWare   = 0xAA;
-	NewFirmWareBagNum = 384;
-	NewFirmWareVer    = 104;
-	LastBagByteNum    = 130;
+	HaveNewFirmWare   = 0;
+	NewFirmWareBagNum = 0;
+	NewFirmWareVer    = 0;
+	LastBagByteNum    = 0;
 	
 	if(NewFirmWareAdd != 0xAA && NewFirmWareAdd != 0x55)
 	{
 		NewFirmWareAdd = 0xAA;
 	}
+	if(NewFirmWareType < 'A' || NewFirmWareType > 'Z')
+	{
+		NewFirmWareType = 'A';
+	}
 	
 	*(hold_reg + FIRM_WARE_FLAG_S_ADD) 			= HaveNewFirmWare;
+	*(hold_reg + FIRM_WARE_TYPE_S_ADD) 			= NewFirmWareType;
 	*(hold_reg + FIRM_WARE_STORE_ADD_S_ADD) 	= NewFirmWareAdd;
 	*(hold_reg + FIRM_WARE_VER_S_ADD + 0) 		= (u8)((NewFirmWareVer >> 8) & 0x00FF);
 	*(hold_reg + FIRM_WARE_VER_S_ADD + 1) 		= (u8)(NewFirmWareVer & 0x00FF);
@@ -944,11 +1026,14 @@ void ReadParametersFromEEPROM(void)
 	ReadDeviceName();
 	ReadDeviceID();
 	ReadDeviceUUID();
+	ReadDeviceICCID();
+	ReadDeviceIMSI();
 	ReadOperators();
 	ReadAPN();
 	ReadServerDomain();
 	ReadServerIP();
 	ReadServerPort();
+//	ResetOTAInfo(HoldReg);
 }
 
 

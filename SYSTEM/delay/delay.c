@@ -153,6 +153,18 @@ void delay_ms(u16 nms)
 	for(i = 0; i < nms; i++)
 		delay_us(1000);
 }
+
+void nbiot_sleep(int milliseconds)
+{
+	delay_ms(milliseconds);
+	
+	return;
+}
+
+time_t nbiot_time(void)
+{
+	return (RTC->CNTL | RTC->CNTH << 16);
+}
 #endif
 
 

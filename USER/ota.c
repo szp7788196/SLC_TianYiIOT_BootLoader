@@ -137,7 +137,8 @@ LOOP:
 			{
 				if((NewFirmWareVer <= 9999 && NewFirmWareVer > 0)\
 					&& (NewFirmWareBagNum <= 896 && NewFirmWareBagNum > 0)\
-					&& (LastBagByteNum <= 134 && LastBagByteNum > 0))	//版本号合法 并且 总包数合法 并且 末包字节数合法 //128 + 2 + 4 = 134
+					&& (LastBagByteNum <= 134 && LastBagByteNum > 0)
+					&& (NewFirmWareType >= 'A' && NewFirmWareType <= 'Z'))	//版本号合法 并且 总包数合法 并且 末包字节数合法 //128 + 2 + 4 = 134
 				{
 					if(NewFirmWareAdd == 0xAA)
 					{
@@ -168,64 +169,44 @@ LOOP:
 }
 
 
+CONNECT_STATE_E ConnectState = UNKNOW_STATE;
+u8 SocketId = 255;
 u8 SignalIntensity = 99;						//bg96的信号强度
-char *UdpSockedId = NULL;
+u8 err_cnt_re_init = 0;
 u8 FirmWareUpDate(void)
 {
 	u8 ret = 1;
-	u8 res = 0;
-//	u8 err_cnt = 0;
-	u8 socket_state = 0;
-	u8 socket = 0;
-	u8 connected = 0;
-	u8 got_ip = 0;
-	u8 err_cnt_got_ip = 0;
-	u8 err_cnt_re_init = 0;
+//	u8 err_cnt_re_init = 0;
+
+	static time_t times_sec = 0;
+
+	bcxx_hard_init();
 
 	RE_INIT:
-	bcxx_init();
+	bcxx_soft_init();
+
+	ConnectState = UNKNOW_STATE;
 
 	err_cnt_re_init ++;
 
-	socket_state = 0;
 
-	while(ret)
+	while(1)
 	{
-		SignalIntensity = bcxx_get_AT_CSQ();
-
-		switch(socket_state)
+		if(GetSysTick1s() - times_sec >= 10)			//每隔10秒钟获取一次信号强度
 		{
-			case 0:				//获取本地IP地址
-				re_got:
-				got_ip = bcxx_get_AT_CGPADDR(&UdpSockedId);
+			times_sec = GetSysTick1s();
 
-				if(got_ip == 1)
+			SignalIntensity = bcxx_get_AT_CSQ();
+		}
+
+		switch(ConnectState)
+		{
+			case UNKNOW_STATE:
+				ret = bcxx_get_AT_CGPADDR((char **)&LocalIp);
+
+				if(ret == 1)
 				{
-					socket_state = 1;
-					err_cnt_got_ip = 0;
-				}
-				else
-				{
-					delay_ms(2000);
-					err_cnt_got_ip ++;
-
-					if(err_cnt_got_ip >= 60)
-					{
-						err_cnt_got_ip = 0;
-
-						goto RE_INIT;
-					}
-
-					goto re_got;
-				}
-			break;
-
-			case 1:				//创建一个socket
-				socket = bcxx_set_AT_NSCOR("STREAM", "6","0");
-
-				if(socket <= 7)
-				{
-					socket_state = 2;
+					ConnectState = GET_READY;
 				}
 				else
 				{
@@ -233,12 +214,12 @@ u8 FirmWareUpDate(void)
 				}
 			break;
 
-			case 2:
-				connected = bcxx_set_AT_NSOCO(socket, "103.48.232.122","8080");
+			case GET_READY:
+				ret = TryToConnectToServer();
 
-				if(connected == 1)
+				if(ret == 1)
 				{
-					socket_state = 3;
+					ConnectState = ON_SERVER;
 				}
 				else
 				{
@@ -246,15 +227,14 @@ u8 FirmWareUpDate(void)
 				}
 			break;
 
-			case 3:
-				res = OnServerHandle(socket);
+			case ON_SERVER:
+				ret = OnServerHandle(SocketId);
 
-				if(res == 0xAA)				//固件包接收完成
+				if(ret == 0xAA)				//固件包接收完成
 				{
-					ret = 0xAA;
-					break;
+					goto JUMP_OUT;
 				}
-				else if(res != 1)			//其他错误:校验、数据长度、包数、URL等错误
+				else if(ret != 1)			//其他错误:校验、数据长度、包数、URL等错误
 				{
 					goto RE_INIT;
 				}
@@ -264,12 +244,16 @@ u8 FirmWareUpDate(void)
 				}
 			break;
 
+			case DISCONNECT:
+				goto RE_INIT;
+//			break;
+
 			default:
 
 			break;
 		}
 
-		if(err_cnt_re_init >= 5)					//错误数超过5次取消OTA，返回上个版本运行
+		if(err_cnt_re_init >= 10)					//错误数超过5次取消OTA，返回上个版本运行
 		{
 			if(NewFirmWareAdd == 0xAA)
 			{
@@ -284,7 +268,9 @@ u8 FirmWareUpDate(void)
 
 			ResetOTAInfo(HoldReg);
 
+			JUMP_OUT:
 			ret = 0xAA;
+
 			break;
 		}
 
@@ -294,7 +280,24 @@ u8 FirmWareUpDate(void)
 	return ret;
 }
 
-u8 DownLoadBuf[256];
+u8 TryToConnectToServer(void)
+{
+	u8 ret = 0;
+
+	if(ServerIP != NULL && ServerPort != NULL)
+	{
+		SocketId = bcxx_set_AT_NSOCR("STREAM", "6","0");
+
+		if(SocketId <= 7)
+		{
+			ret = bcxx_set_AT_NSOCO(SocketId, "103.48.232.121","80");
+		}
+	}
+
+	return ret;
+}
+
+u8 DownLoadBuf[512];
 u8 TempBuf[256];
 u8 SendBuf[512];
 u8 crc32_cal_buf[1024];
@@ -311,11 +314,13 @@ u8 OnServerHandle(u8 socket)
 	u16 crc16_cal = 0;
 	u16 crc16_read = 0;
 	u32 crc32_cal = 0xFFFFFFFF;
+	u32 crc32_cal_r = 0x00000000;
 	u32 crc32_read = 0;
 	u32 file_len = 0;
 	u16 k_num = 0;
 	u16 last_k_byte_num = 0;
 	u8 srtA_B[2] = {0,0};
+	u8 srtType[2] = {0,0};
 
 	if(bag_pos <= (NewFirmWareBagNum - 1))
 	{
@@ -332,20 +337,17 @@ u8 OnServerHandle(u8 socket)
 			srtA_B[0] = 'B';
 		}
 
-//		sprintf((char *)TempBuf,"nnlightctl/hardware/A%02d.%02d%s/SLC%04d.bin",\
-//					NewFirmWareVer / 100,NewFirmWareVer % 100,srtA_B,bag_pos);
-		
-		sprintf((char *)TempBuf,"GET /nnlightctl/hardware/SLC/V%02d.%02d%s/SLC%04d.bin HTTP/1.1\r\nHost: 103.48.232.122:8080\r\nUser-Agent: abc\r\nConnection: Keep-alive\r\nKeep-alive: timeout=60\r\n\r\n",\
-					NewFirmWareVer / 100,NewFirmWareVer % 100,srtA_B,bag_pos);
-		
+		srtType[0] = NewFirmWareType;
+
+		sprintf((char *)TempBuf,"GET /nnlightctl/hardware/SLC/%s/V%02d.%02d%s/SLC%04d.bin HTTP/1.1\r\nHost: 103.48.232.121:80\r\nUser-Agent: abc\r\nConnection: Keep-alive\r\nKeep-alive: timeout=60\r\n\r\n",\
+					srtType,NewFirmWareVer / 100,NewFirmWareVer % 100,srtA_B,bag_pos);
+
 		send_len = strlen((char *)TempBuf);
 
 		HexToStr((char *)SendBuf, TempBuf, send_len);
 
 		if(send_len != 0)
 		{
-			UsartSendString(USART1,SendBuf,send_len);
-
 			memset(TempBuf,0,256);
 
 			data_len = bcxx_set_AT_NSOSD(socket, send_len,(char *)SendBuf,DownLoadBuf);
@@ -431,7 +433,12 @@ u8 OnServerHandle(u8 socket)
 								}
 							}
 
-							if(crc32_read == crc32_cal)
+							crc32_cal_r |= (crc32_cal >> 24) & 0x000000FF;
+							crc32_cal_r |= (crc32_cal >> 8)  & 0x0000FF00;
+							crc32_cal_r |= (crc32_cal << 8)  & 0x00FF0000;
+							crc32_cal_r |= (crc32_cal << 24) & 0xFF000000;
+
+							if(crc32_read == crc32_cal || crc32_read == crc32_cal_r)
 							{
 								__disable_irq();		//关闭全局中断，以免扰乱读写EEPROM
 								do

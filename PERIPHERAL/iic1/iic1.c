@@ -7,11 +7,7 @@ void IIC1_Init(void)
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 
-#ifdef SMALLER_BOARD
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13 | GPIO_Pin_14;
-#else
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7;
-#endif
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP ;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
@@ -41,8 +37,8 @@ void IIC1_Stop(void)
 	IIC1_SDA_L;		//IIC_SDA=0;//STOP:when CLK is high DATA change form low to high
  	delay_us(4);
 	IIC1_SCL_H;		//IIC_SCL=1; 
-	IIC1_SDA_H;		//IIC_SDA=1;//发送I2C总线结束信号
-	delay_us(4);							   	
+	delay_us(4);	
+	IIC1_SDA_H;		//IIC_SDA=1;//发送I2C总线结束信号					   	
 }
 
 //等待应答信号到来

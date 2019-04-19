@@ -5,15 +5,17 @@
 #include "rtc.h"
 #include "ota.h"
 #include "bcxx.h"
+#include "usart2.h"
 
 //u16 i = 0;
 //u8 eepbuf[256];
 u16 cnt = 0;
 u8 led_s = 0;
 RCC_ClocksTypeDef RCC_Clocks;
+
 int main(void)
 {
-//	IWDG_Init(IWDG_Prescaler_128,625);	//128分频 312.5HZ 625为2秒
+	IWDG_Init(IWDG_Prescaler_128,625);	//128分频 312.5HZ 625为2秒
 	RCC_GetClocksFreq(&RCC_Clocks);		//查看各个总线的时钟频率
 	__set_PRIMASK(1);	//关闭全局中断
 
@@ -28,11 +30,7 @@ int main(void)
 
 	__set_PRIMASK(0);	//开启全局中断
 
-//	BG96_InitStep1(&bg96);
-//	BG96_InitStep2(&bg96);
-	
-	ResetOTAInfo(HoldReg);
-//	mem_init();
+	ReadParametersFromEEPROM();
 
 	IWDG_Feed();				//喂看门狗
 	
